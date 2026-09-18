@@ -1,0 +1,41 @@
+name: Publish verified NEXUS Binary v6.7.63
+on:
+  push:
+    branches: [ main ]
+    paths: [ '.github/workflows/publish-v6.7.63.yml' ]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact signed build 35379100311
+        env:
+          ARTIFACT_URL: "https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-8cb0-820e-b557-933e7e53e9d0/raw?se=2026-09-18T18%3A23%3A02Z&sp=r&sv=2026-02-06&sr=b&scid=01a0b5b2-be37-7a60-95fc-55b589f1ec66&skoid=86ad43b0-1afa-4d46-a6d6-9e67f7cdc5bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T13%3A46%3A53Z&ske=2026-09-19T13%3A46%3A53Z&sks=b&skv=2026-02-06&sig=lxGsW8NKj7VUgkDOMPtTACgPeva48NoGGMoBUWC3CTU%3D"
+        run: |
+          set -euo pipefail
+          curl -fL --retry 2 "$ARTIFACT_URL" -o artifact.zip
+          echo "a1ac2fbc4d01a013d3d90b205f7b70fd4101f07714a6d6e024c3dd61d724628a  artifact.zip" | sha256sum -c -
+          unzip -q artifact.zip -d release-files
+          cd release-files
+          echo "46faf06122e2e8775df68a78d1656d64c978ca29f2728347a04d958b1faece8d  NEXUS-Binary-v6.7.63.apk" | sha256sum -c -
+          test "$(cat NEXUS-Binary-v6.7.63.apk.sha256)" = "46faf06122e2e8775df68a78d1656d64c978ca29f2728347a04d958b1faece8d"
+          test -s NEXUS-Binary-v6.7.63.apk.sha256.sig
+      - name: Inspect shipped APK options
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('release-files/NEXUS-Binary-v6.7.63.apk') as apk:
+              html = apk.read('assets/index.html').decode()
+              js = apk.read('assets/app.js').decode()
+              assert 'Ambos' not in html and 'data-market-mode="BOTH"' not in html
+              assert html.count('data-market-mode=') == 2
+              assert "['REGULAR','OTC','BOTH'].includes" not in js
+              assert 'admin-accounts.js' in html
+          print('Verified final APK: Mercado/OTC and commercial panel')
+          PY
+      - name: Publish official update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v6.7.63 release-files/* --repo "${{ github.repository }}" --title "NEXUS Binary v6.7.63" --notes "Correção do seletor Mercado/OTC, migração de Ambos e acesso pelo domínio oficial. APK assinado e conteúdo conferido." --latest
