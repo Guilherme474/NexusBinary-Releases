@@ -1,0 +1,19 @@
+name: Probe NEXUS update endpoint
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/probe-update.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe update endpoints
+        shell: bash
+        run: |
+          set -x
+          curl -i --max-time 20 https://nexusbinary-production.up.railway.app/api/app-update
+          echo
+          curl -i --max-time 20 https://nexusbinary.up.railway.app/api/app-update
