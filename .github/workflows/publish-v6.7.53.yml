@@ -1,0 +1,55 @@
+name: Publish NEXUS Binary v6.7.53
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/publish-v6.7.53.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download validated build artifact
+        shell: bash
+        env:
+          ARTIFACT_URL: "https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-c864-820e-af32-fc5110c9ccae/raw?se=2026-09-18T01%3A00%3A08Z&sp=r&sv=2026-02-06&sr=b&scid=1176fa1f-b8a0-57a1-bb5c-cc8df3f301d0&skoid=86ad43b0-1afa-4d46-a6d6-9e67f7cdc5bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-17T18%3A09%3A41Z&ske=2026-09-18T18%3A09%3A41Z&sks=b&skv=2026-02-06&sig=pMiRlwR8b%2B1%2BSd1wn3uAchx42nTys1%2BmyVXAvJ024Eg%3D"
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o nexus-artifact.zip
+          unzip -q nexus-artifact.zip -d release-files
+          test -s release-files/NEXUS-Binary-v6.7.53.apk
+          test -s release-files/NEXUS-Binary-v6.7.53.apk.sha256
+          test -s release-files/NEXUS-Binary-v6.7.53.apk.sha256.sig
+
+      - name: Verify APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-files
+          EXPECTED=$(tr -d '[:space:]' < NEXUS-Binary-v6.7.53.apk.sha256)
+          ACTUAL=$(sha256sum NEXUS-Binary-v6.7.53.apk | awk '{print $1}')
+          test "$EXPECTED" = "$ACTUAL"
+          test "$ACTUAL" = "d79f52853b4aa6c97577f24076fe24ed377a1edf85d68e1fdec5fd660d6a0c33"
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v6.7.53             release-files/NEXUS-Binary-v6.7.53.apk             release-files/NEXUS-Binary-v6.7.53.apk.sha256             release-files/NEXUS-Binary-v6.7.53.apk.sha256.sig             --repo "${{ github.repository }}"             --title "NEXUS Binary v6.7.53"             --notes "NEXUS Binary v6.7.53
+
+Segurança do APK reforçada:
+- ponte Android/WebView restrita a conteúdo confiável;
+- validação do certificado oficial do APK;
+- debugging desativado no release;
+- identidade criptográfica preservada no Android Keystore;
+- proteção contra adulteração, debugger, root e hooking;
+- R8/ProGuard habilitado;
+- atualizações autenticadas por SHA-256 assinado e certificado oficial.
+
+O item 8 de hardening de rede não foi incluído nesta versão."             --latest
