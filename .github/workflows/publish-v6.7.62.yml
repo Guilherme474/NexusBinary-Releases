@@ -39,3 +39,5 @@ jobs:
         run: |
           gh release delete v6.7.62 --repo "${{ github.repository }}" --yes 2>/dev/null || true
           gh release create v6.7.62 release-files/NEXUS-Binary-v6.7.62.apk release-files/NEXUS-Binary-v6.7.62.apk.sha256 release-files/NEXUS-Binary-v6.7.62.apk.sha256.sig --repo "${{ github.repository }}" --title "NEXUS Binary v6.7.62" --notes "Mercado/OTC somente e sincronização imediata do Cloud ao retomar o APK." --latest
+
+# trigger retry 2
