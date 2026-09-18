@@ -35,21 +35,35 @@ jobs:
           test "$EXPECTED" = "$ACTUAL"
           test "$ACTUAL" = "d79f52853b4aa6c97577f24076fe24ed377a1edf85d68e1fdec5fd660d6a0c33"
 
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > RELEASE_NOTES.md <<'EOF'
+          NEXUS Binary v6.7.53
+
+          Segurança do APK reforçada:
+          - ponte Android/WebView restrita a conteúdo confiável;
+          - validação do certificado oficial do APK;
+          - debugging desativado no release;
+          - identidade criptográfica preservada no Android Keystore;
+          - proteção contra adulteração, debugger, root e hooking;
+          - R8/ProGuard habilitado;
+          - atualizações autenticadas por SHA-256 assinado e certificado oficial.
+
+          O item 8 de hardening de rede não foi incluído nesta versão.
+          EOF
+
       - name: Publish GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create v6.7.53             release-files/NEXUS-Binary-v6.7.53.apk             release-files/NEXUS-Binary-v6.7.53.apk.sha256             release-files/NEXUS-Binary-v6.7.53.apk.sha256.sig             --repo "${{ github.repository }}"             --title "NEXUS Binary v6.7.53"             --notes "NEXUS Binary v6.7.53
-
-Segurança do APK reforçada:
-- ponte Android/WebView restrita a conteúdo confiável;
-- validação do certificado oficial do APK;
-- debugging desativado no release;
-- identidade criptográfica preservada no Android Keystore;
-- proteção contra adulteração, debugger, root e hooking;
-- R8/ProGuard habilitado;
-- atualizações autenticadas por SHA-256 assinado e certificado oficial.
-
-O item 8 de hardening de rede não foi incluído nesta versão."             --latest
+          gh release create v6.7.53 \
+            release-files/NEXUS-Binary-v6.7.53.apk \
+            release-files/NEXUS-Binary-v6.7.53.apk.sha256 \
+            release-files/NEXUS-Binary-v6.7.53.apk.sha256.sig \
+            --repo "${{ github.repository }}" \
+            --title "NEXUS Binary v6.7.53" \
+            --notes-file RELEASE_NOTES.md \
+            --latest
