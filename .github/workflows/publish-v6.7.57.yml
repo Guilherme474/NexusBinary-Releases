@@ -1,0 +1,68 @@
+name: Publish NEXUS Binary v6.7.57
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/publish-v6.7.57.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download validated build artifact
+        shell: bash
+        env:
+          ARTIFACT_URL: "https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-6794-820e-a2b1-da6f9f8e4cb2/raw?se=2026-09-18T03%3A25%3A36Z&sp=r&sv=2026-02-06&sr=b&scid=f48db31d-682f-5850-a3f4-deabd57d5c47&skoid=86ad43b0-1afa-4d46-a6d6-9e67f7cdc5bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-17T18%3A19%3A28Z&ske=2026-09-18T18%3A19%3A28Z&sks=b&skv=2026-02-06&sig=lxRUveWQX0%2B//etkIQq0rwK1c3R1q1Aq1X5/G91n3ew%3D"
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o nexus-artifact.zip
+          unzip -q nexus-artifact.zip -d release-files
+          test -s release-files/NEXUS-Binary-v6.7.57.apk
+          test -s release-files/NEXUS-Binary-v6.7.57.apk.sha256
+          test -s release-files/NEXUS-Binary-v6.7.57.apk.sha256.sig
+
+      - name: Verify exact APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-files
+          EXPECTED=$(tr -d '[:space:]' < NEXUS-Binary-v6.7.57.apk.sha256)
+          ACTUAL=$(sha256sum NEXUS-Binary-v6.7.57.apk | awk '{print $1}')
+          test "$EXPECTED" = "$ACTUAL"
+          test "$ACTUAL" = "3c55cdca858389d6b2e8b61a828bbcc766a6b4370d99d296192063ae1376f810"
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > RELEASE_NOTES.md <<'EOF'
+          NEXUS Binary v6.7.57
+
+          Correção final da sincronização após o reforço de segurança:
+          - a preferência do usuário aguarda o device proof ficar ativo;
+          - após a ativação criptográfica, a preferência pendente é reenviada automaticamente;
+          - em expiração/erro da prova do aparelho, o APK revalida e tenta novamente;
+          - corrige o estado preso em “Cloud online • preferência recusada”;
+          - mantém assinatura oficial, Android Keystore, anti-replay e demais proteções.
+
+          VersionCode: 6757.
+          O motor M1/M5 não foi alterado.
+          EOF
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v6.7.57 \
+            release-files/NEXUS-Binary-v6.7.57.apk \
+            release-files/NEXUS-Binary-v6.7.57.apk.sha256 \
+            release-files/NEXUS-Binary-v6.7.57.apk.sha256.sig \
+            --repo "${{ github.repository }}" \
+            --title "NEXUS Binary v6.7.57" \
+            --notes-file RELEASE_NOTES.md \
+            --latest
