@@ -31,7 +31,7 @@ jobs:
           EXPECTED=$(tr -d '[:space:]' < NEXUS-Binary-v6.7.62.apk.sha256)
           ACTUAL=$(sha256sum NEXUS-Binary-v6.7.62.apk | awk '{print $1}')
           test "$EXPECTED" = "$ACTUAL"
-          test "$ACTUAL" = "1a02dd3c9303e891a4154f977bd7d798d7246527e25e116126456e7c590fddf0"
+          test "$ACTUAL" = "69bbd4e00e8dd4ec977881266e6823126340472969d6b2fc66fd5c1d2ac5d44e"
       - name: Publish GitHub Release
         shell: bash
         env:
