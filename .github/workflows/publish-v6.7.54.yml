@@ -1,0 +1,69 @@
+name: Publish NEXUS Binary v6.7.54
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/publish-v6.7.54.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download validated build artifact
+        shell: bash
+        env:
+          ARTIFACT_URL: "https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-fb50-820e-ae5e-b8fceaa0ce56/raw?se=2026-09-18T02%3A08%3A27Z&sp=r&sv=2026-02-06&sr=b&scid=297bf0fb-3071-568f-9c45-46dba0a5e64a&skoid=86ad43b0-1afa-4d46-a6d6-9e67f7cdc5bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-17T18%3A16%3A39Z&ske=2026-09-18T18%3A16%3A39Z&sks=b&skv=2026-02-06&sig=VYewHdSJ%2BNXAiDHHzRe3fO35ggiEk6kX539jqqj262o%3D"
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o nexus-artifact.zip
+          unzip -q nexus-artifact.zip -d release-files
+          test -s release-files/NEXUS-Binary-v6.7.54.apk
+          test -s release-files/NEXUS-Binary-v6.7.54.apk.sha256
+          test -s release-files/NEXUS-Binary-v6.7.54.apk.sha256.sig
+
+      - name: Verify APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-files
+          EXPECTED=$(tr -d '[:space:]' < NEXUS-Binary-v6.7.54.apk.sha256)
+          ACTUAL=$(sha256sum NEXUS-Binary-v6.7.54.apk | awk '{print $1}')
+          test "$EXPECTED" = "$ACTUAL"
+          test "$ACTUAL" = "f4f5afda37db8738a2a795dd22c95aa7282df9e1a364d79e4b762d24252b8738"
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > RELEASE_NOTES.md <<'EOF'
+          NEXUS Binary v6.7.54
+
+          Segurança adicional:
+          - vínculo criptográfico por aparelho usando a chave ECDSA do Android Keystore;
+          - desafio/ativação por dispositivo;
+          - assinatura das requisições comerciais com timestamp, nonce e hash do corpo;
+          - bloqueio de replay no servidor;
+          - rotas móveis comerciais protegidas por prova criptográfica;
+          - recuperação administrativa segura para reinstalação/troca de chave;
+          - migração compatível com a v6.7.53, sem corte imediato da API legada.
+
+          O item 8 de hardening de rede continua não incluído.
+          EOF
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v6.7.54 \
+            release-files/NEXUS-Binary-v6.7.54.apk \
+            release-files/NEXUS-Binary-v6.7.54.apk.sha256 \
+            release-files/NEXUS-Binary-v6.7.54.apk.sha256.sig \
+            --repo "${{ github.repository }}" \
+            --title "NEXUS Binary v6.7.54" \
+            --notes-file RELEASE_NOTES.md \
+            --latest
