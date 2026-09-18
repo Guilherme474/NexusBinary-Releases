@@ -1,0 +1,67 @@
+name: Publish NEXUS Binary v6.7.61
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/publish-v6.7.61.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download validated artifact
+        shell: bash
+        env:
+          ARTIFACT_URL: "https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-9d6c-820e-b05f-38bd4d4b4b13/raw?se=2026-09-18T11%3A12%3A37Z&sp=r&sv=2026-02-06&sr=b&scid=8b174360-54b8-5ce0-8b11-806f8f73ce28&skoid=86ad43b0-1afa-4d46-a6d6-9e67f7cdc5bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T10%3A15%3A49Z&ske=2026-09-19T10%3A15%3A49Z&sks=b&skv=2026-02-06&sig=K8IEQYp9WTnf3dCRFn3Kjo7MIxtUWqSSCHAeTkt5%2B4I%3D"
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o nexus-artifact.zip
+          unzip -q nexus-artifact.zip -d release-files
+          test -s release-files/NEXUS-Binary-v6.7.61.apk
+          test -s release-files/NEXUS-Binary-v6.7.61.apk.sha256
+          test -s release-files/NEXUS-Binary-v6.7.61.apk.sha256.sig
+
+      - name: Verify exact APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-files
+          EXPECTED=$(tr -d '[:space:]' < NEXUS-Binary-v6.7.61.apk.sha256)
+          ACTUAL=$(sha256sum NEXUS-Binary-v6.7.61.apk | awk '{print $1}')
+          test "$EXPECTED" = "$ACTUAL"
+          test "$ACTUAL" = "5da75438ff2460507f3f5767725db1b6b832d7d48bcb28a68e32b0599bef0c2a"
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > RELEASE_NOTES.md <<'EOF'
+          NEXUS Binary v6.7.61
+
+          Correção do lembrete de atualização:
+          - “AGORA NÃO” fecha apenas o aviso atual;
+          - a atualização pendente volta a ser verificada ao abrir/retomar o NEXUS;
+          - removido o antigo bloqueio persistente de 12 horas;
+          - o bloqueio contra diálogos duplicados simultâneos continua ativo.
+
+          Mantém o novo modal visual, segurança, Cloud, Acessos comerciais e motor M1/M5.
+          VersionCode: 6761.
+          EOF
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v6.7.61 \
+            release-files/NEXUS-Binary-v6.7.61.apk \
+            release-files/NEXUS-Binary-v6.7.61.apk.sha256 \
+            release-files/NEXUS-Binary-v6.7.61.apk.sha256.sig \
+            --repo "${{ github.repository }}" \
+            --title "NEXUS Binary v6.7.61" \
+            --notes-file RELEASE_NOTES.md \
+            --latest
