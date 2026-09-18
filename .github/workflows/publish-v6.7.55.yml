@@ -1,0 +1,66 @@
+name: Publish NEXUS Binary v6.7.55
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/publish-v6.7.55.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download validated build artifact
+        shell: bash
+        env:
+          ARTIFACT_URL: "https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-edbc-820e-ab83-d5593c6000a2/raw?se=2026-09-18T02%3A35%3A27Z&sp=r&sv=2026-02-06&sr=b&scid=c4bea1cc-ad07-54b4-b073-096d37ede40e&skoid=86ad43b0-1afa-4d46-a6d6-9e67f7cdc5bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-17T18%3A14%3A27Z&ske=2026-09-18T18%3A14%3A27Z&sks=b&skv=2026-02-06&sig=Cb3BiQEQ6l7si5xdLeNxavsII2n2DW1xWftEar7kfRA%3D"
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o nexus-artifact.zip
+          unzip -q nexus-artifact.zip -d release-files
+          test -s release-files/NEXUS-Binary-v6.7.55.apk
+          test -s release-files/NEXUS-Binary-v6.7.55.apk.sha256
+          test -s release-files/NEXUS-Binary-v6.7.55.apk.sha256.sig
+
+      - name: Verify exact APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-files
+          EXPECTED=$(tr -d '[:space:]' < NEXUS-Binary-v6.7.55.apk.sha256)
+          ACTUAL=$(sha256sum NEXUS-Binary-v6.7.55.apk | awk '{print $1}')
+          test "$EXPECTED" = "$ACTUAL"
+          test "$ACTUAL" = "3505bf1115be049b471f2cf7aa88a627eb5f5d8ffd517026660c18227674171c"
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > RELEASE_NOTES.md <<'EOF'
+          NEXUS Binary v6.7.55
+
+          Correção crítica de atualização:
+          - versionCode 6755, restaurando a sequência usada pela v6.7.52 (6752);
+          - permite que usuários da v6.7.52 detectem e instalem a atualização normalmente;
+          - mantém todo o hardening da v6.7.54, incluindo vínculo criptográfico por aparelho, proteção contra replay, Android Keystore, validação de assinatura e atualizações autenticadas;
+          - adicionada trava de build para impedir regressão de versionCode no futuro.
+
+          O item 8 de hardening de rede continua não incluído.
+          EOF
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v6.7.55 \
+            release-files/NEXUS-Binary-v6.7.55.apk \
+            release-files/NEXUS-Binary-v6.7.55.apk.sha256 \
+            release-files/NEXUS-Binary-v6.7.55.apk.sha256.sig \
+            --repo "${{ github.repository }}" \
+            --title "NEXUS Binary v6.7.55" \
+            --notes-file RELEASE_NOTES.md \
+            --latest
