@@ -18,7 +18,7 @@ jobs:
             https://nexusbinary-production.up.railway.app/api/app-update \
             https://nexusbinary.up.railway.app/api/app-update
           do
-            BODY=$(curl -fsSL --max-time 20 "$URL")
+            BODY=$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --max-time 20 "$URL")
             echo "$URL"
             echo "$BODY"
             echo "$BODY" | grep -q '"versionCode":6755'
