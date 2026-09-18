@@ -1,0 +1,68 @@
+name: Publish NEXUS Binary v6.7.60
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/publish-v6.7.60.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download validated build artifact
+        shell: bash
+        env:
+          ARTIFACT_URL: "https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-8018-820e-982a-4fdc43bf63ff/raw?se=2026-09-18T08%3A03%3A22Z&sp=r&sv=2026-02-06&sr=b&scid=7c200a6f-25b6-53e5-a9e1-1142b8718c2b&skoid=86ad43b0-1afa-4d46-a6d6-9e67f7cdc5bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T02%3A07%3A54Z&ske=2026-09-19T02%3A07%3A54Z&sks=b&skv=2026-02-06&sig=1%2BZDCI4VM8HUlNhaYNBXyyVo/2vGbXpMUtiOwlovE%2B4%3D"
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o nexus-artifact.zip
+          unzip -q nexus-artifact.zip -d release-files
+          test -s release-files/NEXUS-Binary-v6.7.60.apk
+          test -s release-files/NEXUS-Binary-v6.7.60.apk.sha256
+          test -s release-files/NEXUS-Binary-v6.7.60.apk.sha256.sig
+
+      - name: Verify exact APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-files
+          EXPECTED=$(tr -d '[:space:]' < NEXUS-Binary-v6.7.60.apk.sha256)
+          ACTUAL=$(sha256sum NEXUS-Binary-v6.7.60.apk | awk '{print $1}')
+          test "$EXPECTED" = "$ACTUAL"
+          test "$ACTUAL" = "9f0a0efdc6e584490b68ab3c7554175b50ce80663c69fb4e90863dd068b66a92"
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > RELEASE_NOTES.md <<'EOF'
+          NEXUS Binary v6.7.60
+
+          Novo aviso de atualização:
+          - substitui o alerta padrão do Android por um modal nativo com identidade visual do NEXUS;
+          - exibe logo, cabeçalho NEXUS / BINARY INTELLIGENCE, versão dinâmica e selo de atualização oficial;
+          - mostra que o aviso foi gerado pelo próprio aplicativo e que a atualização é validada antes da instalação;
+          - botões grandes “AGORA NÃO” e “ATUALIZAR”;
+          - fundo escurecido, cartão premium escuro e destaque ciano.
+
+          Mantém assinatura oficial, validação SHA/certificado, device proof, painel administrativo, Cloud e motor M1/M5.
+          VersionCode: 6760.
+          EOF
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v6.7.60 \
+            release-files/NEXUS-Binary-v6.7.60.apk \
+            release-files/NEXUS-Binary-v6.7.60.apk.sha256 \
+            release-files/NEXUS-Binary-v6.7.60.apk.sha256.sig \
+            --repo "${{ github.repository }}" \
+            --title "NEXUS Binary v6.7.60" \
+            --notes-file RELEASE_NOTES.md \
+            --latest
