@@ -1,0 +1,24 @@
+name: Final NEXUS update probe
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/final-update-probe.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production update endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          for URL in             https://nexusbinary-production.up.railway.app/api/app-update             https://nexusbinary.up.railway.app/api/app-update
+          do
+            BODY=$(curl -fsSL --retry 3 --retry-all-errors --retry-delay 1 --max-time 20 "$URL")
+            echo "$URL => $BODY"
+            echo "$BODY" | grep -q '"versionCode":6755'
+            echo "$BODY" | grep -q '"versionName":"6.7.55"'
+            echo "$BODY" | grep -q 'NEXUS-Binary-v6.7.55.apk'
+          done
