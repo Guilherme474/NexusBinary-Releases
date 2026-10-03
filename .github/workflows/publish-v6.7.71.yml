@@ -1,0 +1,33 @@
+name: Publish validated NEXUS Binary v6.7.71
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-v6.7.71.yml']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact Android-validated release
+        run: |
+          set -euo pipefail
+          cd dist/v6.7.71
+          echo "4f12c879ab391acb10926597430f2636ff4cf4f01af30695d4a5a39a139b1733  NEXUS-Binary-v6.7.71.apk" | sha256sum -c -
+          test "$(cat NEXUS-Binary-v6.7.71.apk.sha256)" = "4f12c879ab391acb10926597430f2636ff4cf4f01af30695d4a5a39a139b1733"
+          test -s NEXUS-Binary-v6.7.71.apk.sha256.sig
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs NEXUS-Binary-v6.7.71.apk > /tmp/apk-signature.txt
+          grep -q '0bd043286ee48288b06a80361e0b56332a1e5e01f720b99fb69db7c1c1259e97' /tmp/apk-signature.txt
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('NEXUS-Binary-v6.7.71.apk') as apk:
+              assert 'assets/native-adapter.js' in apk.namelist()
+              assert 'assets/app.js' not in apk.namelist()
+          PY
+      - name: Publish official signed update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v6.7.71 dist/v6.7.71/NEXUS-Binary-v6.7.71.apk dist/v6.7.71/NEXUS-Binary-v6.7.71.apk.sha256 dist/v6.7.71/NEXUS-Binary-v6.7.71.apk.sha256.sig --repo "${{ github.repository }}" --title "NEXUS Binary v6.7.71" --notes "APK conectado ao site oficial atualizado. Sincronização Cloud, histórico e seletores Mercado/OTC, M1/M5 e Sem Gale/G1/G2 preservados. Assinatura oficial e teste Android aprovados. A validação com conta autenticada depende do aparelho." --latest
